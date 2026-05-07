@@ -1,11 +1,27 @@
-import { neon } from "@neondatabase/serverless";
+import { neon, NeonQueryFunction } from "@neondatabase/serverless";
 
-const sql = neon(process.env.DATABASE_URL!);
+let _sql: NeonQueryFunction<false, false> | null = null;
 
-export { sql };
+function getDb(): NeonQueryFunction<false, false> {
+  if (!_sql) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is not set");
+    }
+    _sql = neon(process.env.DATABASE_URL);
+  }
+  return _sql;
+}
+
+// Lazy proxy so the module can be imported at build time without DATABASE_URL
+function lazyQuery(...args: Parameters<NeonQueryFunction<false, false>>) {
+  return getDb()(...args);
+}
+
+export const sql = lazyQuery as unknown as NeonQueryFunction<false, false>;
 
 export async function initDb() {
-  await sql`
+  const db = getDb();
+  await db`
     CREATE TABLE IF NOT EXISTS books (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,

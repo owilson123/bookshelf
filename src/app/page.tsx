@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { sql } from "@/lib/db";
 import { Book } from "@/lib/types";
 import { BookCard } from "@/components/book-card";

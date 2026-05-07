@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { sql } from "@/lib/db";
 import { Book } from "@/lib/types";
 import { BarChart2, Star, BookOpen, Clock, TrendingUp, Award } from "lucide-react";
