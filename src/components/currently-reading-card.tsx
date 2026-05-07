@@ -1,7 +1,7 @@
 "use client";
 
 import { Book } from "@/lib/types";
-import { differenceInDays, parseISO } from "date-fns";
+import { differenceInDays } from "date-fns";
 import Image from "next/image";
 import { BookOpen, Clock, Pencil } from "lucide-react";
 import { useState } from "react";
@@ -13,7 +13,7 @@ export function CurrentlyReadingCard({ book }: { book: Book }) {
   const [editing, setEditing] = useState(false);
 
   const pct = book.page_count ? Math.min(100, Math.round((page / book.page_count) * 100)) : 0;
-  const daysElapsed = book.date_added ? differenceInDays(new Date(), parseISO(book.date_added)) : 0;
+  const daysElapsed = book.date_added ? differenceInDays(new Date(), new Date(book.date_added)) : 0;
   const pagesLeft = book.page_count ? book.page_count - page : null;
 
   async function savePage(newPage: number) {
