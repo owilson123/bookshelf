@@ -123,6 +123,7 @@ export default function ImportPage() {
               </p>
               <p className="text-white/30 text-[13px] mt-1">or click to browse</p>
             </div>
+            <p className="text-[11px] text-red-400/50 mt-1">⚠ This will replace your entire current library</p>
           </div>
         )}
 

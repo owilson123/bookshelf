@@ -38,6 +38,9 @@ export async function POST(req: NextRequest) {
     let imported = 0;
     let skipped = 0;
 
+    // Clear existing library before importing
+    await sql`DELETE FROM books`;
+
     for (const row of rows) {
       if (!row.Title) { skipped++; continue; }
       const shelf = mapShelf(row.Bookshelves ?? "");
