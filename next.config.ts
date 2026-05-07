@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "books.google.com" },
       { protocol: "https", hostname: "*.googleusercontent.com" },
       { protocol: "http", hostname: "books.google.com" },
+      { protocol: "https", hostname: "covers.openlibrary.org" },
     ],
   },
 };

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { nanoid } from "@/lib/utils-server";
 import { searchBooks } from "@/lib/google-books";
+import { fetchCoverUrl } from "@/lib/covers";
 import { Shelf } from "@/lib/types";
 
 interface GoodreadsRow {
@@ -47,12 +48,12 @@ export async function POST(req: NextRequest) {
       const isbn10 = cleanIsbn(row.ISBN);
       const isbn = isbn13 ?? isbn10;
 
-      // Try Google Books lookup for cover
       let coverUrl: string | null = null;
       let googleId: string | null = null;
       let description: string | null = null;
       let genres: string[] | null = null;
 
+      // Fetch metadata from Google Books
       try {
         const query = isbn ? `isbn:${isbn}` : `intitle:${row.Title} inauthor:${row.Author}`;
         const results = await searchBooks(query);
@@ -63,8 +64,11 @@ export async function POST(req: NextRequest) {
           description = vol.volumeInfo.description ?? null;
           genres = vol.volumeInfo.categories ?? null;
         }
-      } catch {
-        // non-fatal
+      } catch { /* non-fatal */ }
+
+      // If Google Books had no cover, try Open Library
+      if (!coverUrl) {
+        coverUrl = await fetchCoverUrl({ title: row.Title, author: row.Author, isbn });
       }
 
       await sql`

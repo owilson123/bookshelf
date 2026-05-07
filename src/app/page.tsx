@@ -7,6 +7,7 @@ import { CurrentlyReadingCard } from "@/components/currently-reading-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Clock, CheckCheck, BookMarked, Search, Upload } from "lucide-react";
 import Link from "next/link";
+import { RefreshCoversButton } from "@/components/refresh-covers-button";
 
 async function getBooks(): Promise<Book[]> {
   try {
@@ -22,6 +23,7 @@ export default async function ShelvesPage() {
   const currentlyReading = books.filter((b) => b.shelf === "currently_reading");
   const wantToRead = books.filter((b) => b.shelf === "want_to_read");
   const read = books.filter((b) => b.shelf === "read");
+  const missingCovers = books.filter((b) => !b.cover_url).length;
 
   return (
     <div className="space-y-10">
@@ -36,10 +38,13 @@ export default async function ShelvesPage() {
           </p>
         </div>
         {books.length > 0 && (
-          <div className="flex items-center gap-5 text-[13px]">
-            <Stat icon={<BookOpen className="w-3.5 h-3.5 text-amber-400" />} count={currentlyReading.length} label="reading" />
-            <Stat icon={<CheckCheck className="w-3.5 h-3.5 text-emerald-400" />} count={read.length} label="read" />
-            <Stat icon={<Clock className="w-3.5 h-3.5 text-blue-400" />} count={wantToRead.length} label="to read" />
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-5 text-[13px]">
+              <Stat icon={<BookOpen className="w-3.5 h-3.5 text-amber-400" />} count={currentlyReading.length} label="reading" />
+              <Stat icon={<CheckCheck className="w-3.5 h-3.5 text-emerald-400" />} count={read.length} label="read" />
+              <Stat icon={<Clock className="w-3.5 h-3.5 text-blue-400" />} count={wantToRead.length} label="to read" />
+            </div>
+            <RefreshCoversButton missingCount={missingCovers} />
           </div>
         )}
       </div>
