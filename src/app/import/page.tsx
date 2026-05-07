@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import Papa from "papaparse";
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, CheckCircle, AlertCircle, Loader2, BookOpen, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 type Status = "idle" | "parsing" | "importing" | "done" | "error";
@@ -12,6 +12,7 @@ export default function ImportPage() {
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rowCount, setRowCount] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
@@ -34,20 +35,16 @@ export default function ImportPage() {
 
         setStatus("importing");
         try {
-          // First ensure the DB is initialised
           await fetch("/api/init", { method: "POST" });
-
           const res = await fetch("/api/import", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ rows }),
           });
-
           if (!res.ok) {
             const err = await res.json();
             throw new Error(err.error ?? "Import failed");
           }
-
           const data = await res.json();
           setResult(data);
           setStatus("done");
@@ -58,10 +55,7 @@ export default function ImportPage() {
           toast.error("Import failed");
         }
       },
-      error: (e) => {
-        setStatus("error");
-        setError(e.message);
-      },
+      error: (e) => { setStatus("error"); setError(e.message); },
     });
   }
 
@@ -70,95 +64,133 @@ export default function ImportPage() {
     if (file) handleFile(file);
   }
 
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
-  }
+  const busy = status === "parsing" || status === "importing";
 
   return (
     <div className="max-w-xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-[#e6e1d3]">Import from Goodreads</h1>
-        <p className="text-[#8b8685] mt-2">
-          Export your library from Goodreads (My Books → Import/Export → Export Library) then upload the CSV here.
-        </p>
+        <h1 className="text-4xl font-bold tracking-tight text-white">Import Library</h1>
+        <p className="text-white/40 mt-2 text-[15px]">Bring your Goodreads books in with one CSV upload.</p>
       </div>
 
-      {/* How to export */}
-      <div className="bg-[#161b22] border border-white/5 rounded-xl p-4 space-y-2 text-sm text-[#8b8685]">
-        <p className="text-[#e6e1d3] font-medium">How to get your Goodreads CSV</p>
-        <ol className="list-decimal list-inside space-y-1">
-          <li>Go to <span className="text-amber-400">goodreads.com</span> → My Books</li>
-          <li>Click <span className="font-medium text-[#e6e1d3]">Import and Export</span> (bottom of left sidebar)</li>
-          <li>Click <span className="font-medium text-[#e6e1d3]">Export Library</span></li>
-          <li>Download the <code className="text-xs bg-white/5 px-1 rounded">.csv</code> file and upload it below</li>
-        </ol>
+      {/* How-to steps */}
+      <div className="rounded-2xl p-5 space-y-3"
+        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        <p className="text-[13px] font-semibold text-white/70 mb-4">How to export from Goodreads</p>
+        {[
+          "Go to goodreads.com → My Books",
+          "Click Import and Export in the left sidebar",
+          'Click "Export Library" and download the .csv file',
+          "Upload it below — we'll fetch covers automatically",
+        ].map((step, i) => (
+          <div key={i} className="flex items-start gap-3">
+            <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-bold text-amber-400"
+              style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)" }}>
+              {i + 1}
+            </div>
+            <p className="text-[13px] text-white/45 leading-relaxed">{step}</p>
+          </div>
+        ))}
       </div>
 
       {/* Drop zone */}
       <div
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={onDrop}
-        onClick={() => fileRef.current?.click()}
-        className="border-2 border-dashed border-white/10 hover:border-amber-400/30 rounded-xl p-12 text-center cursor-pointer transition-colors group"
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); const file = e.dataTransfer.files?.[0]; if (file) handleFile(file); }}
+        onClick={() => !busy && fileRef.current?.click()}
+        className="relative rounded-2xl p-12 text-center transition-all duration-200 overflow-hidden"
+        style={{
+          background: dragging ? "rgba(245,158,11,0.06)" : "rgba(255,255,255,0.02)",
+          border: `2px dashed ${dragging ? "rgba(245,158,11,0.4)" : "rgba(255,255,255,0.08)"}`,
+          cursor: busy ? "default" : "pointer",
+        }}
       >
         <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
 
         {status === "idle" && (
-          <>
-            <Upload className="w-10 h-10 text-white/20 group-hover:text-amber-400/40 mx-auto mb-3 transition-colors" />
-            <p className="text-[#e6e1d3] font-medium">Drop your CSV here or click to browse</p>
-            <p className="text-sm text-[#8b8685] mt-1">Supports Goodreads export format</p>
-          </>
-        )}
-
-        {status === "parsing" && (
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
-            <p className="text-[#8b8685]">Parsing CSV…</p>
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-200"
+              style={{
+                background: dragging ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${dragging ? "rgba(245,158,11,0.3)" : "rgba(255,255,255,0.08)"}`,
+              }}>
+              <Upload className={`w-7 h-7 transition-colors ${dragging ? "text-amber-400" : "text-white/25"}`} />
+            </div>
+            <div>
+              <p className="text-white/70 font-semibold text-[15px]">
+                {dragging ? "Drop to import" : "Drop your CSV here"}
+              </p>
+              <p className="text-white/30 text-[13px] mt-1">or click to browse</p>
+            </div>
           </div>
         )}
 
-        {status === "importing" && (
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
-            <p className="text-[#e6e1d3] font-medium">Importing {rowCount} books…</p>
-            <p className="text-sm text-[#8b8685]">Fetching covers from Google Books — this may take a moment</p>
+        {(status === "parsing" || status === "importing") && (
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)" }}>
+              <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
+            </div>
+            <div>
+              <p className="text-white/80 font-semibold text-[15px]">
+                {status === "parsing" ? "Reading CSV…" : `Importing ${rowCount} books…`}
+              </p>
+              {status === "importing" && (
+                <p className="text-white/35 text-[13px] mt-1">Fetching covers from Google Books</p>
+              )}
+            </div>
           </div>
         )}
 
         {status === "done" && result && (
-          <div className="flex flex-col items-center gap-3">
-            <CheckCircle className="w-10 h-10 text-green-400" />
-            <p className="text-[#e6e1d3] font-medium">Import complete!</p>
-            <p className="text-sm text-[#8b8685]">{result.imported} books imported · {result.skipped} skipped</p>
-            <button
-              onClick={(e) => { e.stopPropagation(); setStatus("idle"); setResult(null); if (fileRef.current) fileRef.current.value = ""; }}
-              className="mt-2 text-xs text-amber-400 hover:underline"
-            >
-              Import another file
-            </button>
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)" }}>
+              <CheckCircle className="w-7 h-7 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-white/80 font-semibold text-[15px]">Import complete!</p>
+              <p className="text-white/40 text-[13px] mt-1">
+                {result.imported} books imported · {result.skipped} skipped
+              </p>
+            </div>
+            <div className="flex gap-3 mt-2">
+              <a href="/" className="flex items-center gap-2 text-[13px] font-medium text-amber-400 px-4 py-2 rounded-xl transition-all hover:scale-105"
+                style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)" }}>
+                View my shelves <ArrowRight className="w-3.5 h-3.5" />
+              </a>
+              <button
+                onClick={(e) => { e.stopPropagation(); setStatus("idle"); setResult(null); if (fileRef.current) fileRef.current.value = ""; }}
+                className="text-[13px] text-white/40 hover:text-white/60 px-4 py-2 rounded-xl transition-colors"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                Import another
+              </button>
+            </div>
           </div>
         )}
 
         {status === "error" && (
-          <div className="flex flex-col items-center gap-3">
-            <AlertCircle className="w-10 h-10 text-red-400" />
-            <p className="text-[#e6e1d3] font-medium">Import failed</p>
-            <p className="text-sm text-red-400/80">{error}</p>
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}>
+              <AlertCircle className="w-7 h-7 text-red-400" />
+            </div>
+            <div>
+              <p className="text-white/80 font-semibold text-[15px]">Import failed</p>
+              <p className="text-red-400/70 text-[13px] mt-1 max-w-xs">{error}</p>
+            </div>
             <button
               onClick={(e) => { e.stopPropagation(); setStatus("idle"); setError(null); }}
-              className="mt-2 text-xs text-amber-400 hover:underline"
-            >
+              className="text-[13px] text-amber-400 hover:underline mt-1">
               Try again
             </button>
           </div>
         )}
       </div>
 
-      <p className="text-xs text-white/30 text-center">
-        Your data is stored privately in your own database. Nothing is shared.
+      <p className="text-center text-[12px] text-white/20">
+        Your data is stored privately in your own database.
       </p>
     </div>
   );
