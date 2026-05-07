@@ -12,16 +12,23 @@ interface GoodreadsRow {
   "My Rating": string;
   "Date Read": string;
   Bookshelves: string;
+  "Exclusive Shelf": string;
   "Number of Pages": string;
   ISBN: string;
   ISBN13: string;
   Publisher: string;
   "Year Published": string;
-  "Additional Shelves": string;
 }
 
-function mapShelf(bookshelves: string): Shelf {
-  const s = bookshelves.toLowerCase();
+function mapShelf(row: GoodreadsRow): Shelf {
+  // "Exclusive Shelf" (col R) is the canonical Goodreads shelf field
+  const exclusive = (row["Exclusive Shelf"] ?? "").toLowerCase().trim();
+  if (exclusive === "currently-reading") return "currently_reading";
+  if (exclusive === "read") return "read";
+  if (exclusive === "to-read") return "want_to_read";
+
+  // Fallback: parse the freeform Bookshelves column
+  const s = (row.Bookshelves ?? "").toLowerCase();
   if (s.includes("currently-reading") || s.includes("currently reading")) return "currently_reading";
   if (s.includes("read") && !s.includes("to-read")) return "read";
   return "want_to_read";
@@ -43,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     for (const row of rows) {
       if (!row.Title) { skipped++; continue; }
-      const shelf = mapShelf(row.Bookshelves ?? "");
+      const shelf = mapShelf(row);
       const rating = parseInt(row["My Rating"] ?? "0") || null;
       const dateRead = row["Date Read"] ? new Date(row["Date Read"]).toISOString().split("T")[0] : null;
       const pageCount = parseInt(row["Number of Pages"] ?? "0") || null;
