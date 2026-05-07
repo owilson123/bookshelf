@@ -2,7 +2,7 @@
 
 A beautiful, modern book tracking app — your personal reading tracker with a significantly better UI than Goodreads.
 
-**Live URL:** _Deploy to Vercel and update this link_
+**Live URL:** https://bookshelf-six-tawny.vercel.app
 
 ---
 
